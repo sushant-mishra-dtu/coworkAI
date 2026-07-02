@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import json
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
@@ -35,7 +36,12 @@ def init_db():
                 latency_ms REAL,
                 success BOOLEAN NOT NULL,
                 error TEXT,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                cost REAL DEFAULT 0.0,
+                finish_reason TEXT,
+                error_type TEXT,
+                fallback_triggered BOOLEAN DEFAULT 0,
+                raw_metadata TEXT
             )
         ''')
 
@@ -49,7 +55,27 @@ def init_db():
                 created_at TEXT NOT NULL
             )
         ''')
+
+        # Migrate existing databases: add new columns if they don't exist
+        _migrate_usage_logs(cursor)
+
         conn.commit()
+
+def _migrate_usage_logs(cursor):
+    """Add new columns to usage_logs for existing databases."""
+    cursor.execute("PRAGMA table_info(usage_logs)")
+    existing_cols = {row[1] for row in cursor.fetchall()}
+    
+    migrations = [
+        ("cost", "REAL DEFAULT 0.0"),
+        ("finish_reason", "TEXT"),
+        ("error_type", "TEXT"),
+        ("fallback_triggered", "BOOLEAN DEFAULT 0"),
+        ("raw_metadata", "TEXT"),
+    ]
+    for col_name, col_type in migrations:
+        if col_name not in existing_cols:
+            cursor.execute(f"ALTER TABLE usage_logs ADD COLUMN {col_name} {col_type}")
 
 @contextmanager
 def get_db_connection():
@@ -62,13 +88,17 @@ def get_db_connection():
 
 def log_usage(config_full_name: str, agent_id: str, endpoint: str, model_used: str, 
               prompt_tokens: int, completion_tokens: int, total_tokens: int, 
-              latency_ms: float, success: bool, error: str):
+              latency_ms: float, success: bool, error: str,
+              cost: float = 0.0, finish_reason: str = None, error_type: str = None,
+              fallback_triggered: bool = False, raw_metadata: dict = None):
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO usage_logs 
-            (config_full_name, agent_id, endpoint, model_used, prompt_tokens, completion_tokens, total_tokens, latency_ms, success, error, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (config_full_name, agent_id, endpoint, model_used, prompt_tokens, 
+             completion_tokens, total_tokens, latency_ms, success, error, created_at,
+             cost, finish_reason, error_type, fallback_triggered, raw_metadata)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             config_full_name,
             agent_id,
@@ -80,7 +110,12 @@ def log_usage(config_full_name: str, agent_id: str, endpoint: str, model_used: s
             latency_ms,
             success,
             error,
-            datetime.now(timezone.utc).isoformat()
+            datetime.now(timezone.utc).isoformat(),
+            cost,
+            finish_reason,
+            error_type,
+            fallback_triggered,
+            json.dumps(raw_metadata) if raw_metadata else None
         ))
         conn.commit()
 

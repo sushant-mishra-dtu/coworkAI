@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Request, Header, status
 from fastapi.responses import JSONResponse
 from typing import Optional, Any
 import os
+import litellm
 
 from router_manager import get_router, _configs, get_operations, has_vision, get_capabilities, get_custom_op_description
 from schemas import RESERVED_SEGMENTS
@@ -100,6 +101,50 @@ def extract_usage(response: Any) -> tuple[int, int, int]:
         pass
     return 0, 0, 0
 
+def classify_error(exception: Exception) -> str:
+    err_str = str(exception).lower()
+    class_name = type(exception).__name__.lower()
+    
+    if "rate" in err_str and "limit" in err_str:
+        return "rate_limit"
+    if "apiconnectionerror" in class_name or "connection" in err_str:
+        return "connection_error"
+    if "authenticationerror" in class_name or "api key" in err_str or "401" in err_str:
+        return "auth_error"
+    if "timeout" in class_name or "timeout" in err_str:
+        return "timeout"
+    if "notfounderror" in class_name or "404" in err_str:
+        return "not_found"
+    return "provider_error"
+
+def was_fallback_triggered(full_name: str, endpoint: str, litellm_model_name: str) -> bool:
+    if not litellm_model_name:
+        return False
+    config = _configs.get(full_name)
+    if not config:
+        return False
+
+    endpoint_to_op = {
+        "/chat": "chat", "/vision": "chat", "/completions": "completion",
+        "/embeddings": "embedding", "/images/generations": "image_generation",
+        "/audio/transcriptions": "audio_transcription", "/audio/speech": "audio_speech"
+    }
+    op = endpoint_to_op.get(endpoint)
+
+    if op and op in config.operations:
+        models = sorted(config.operations[op], key=lambda m: m.priority)
+        if models and models[0].litellm_model != litellm_model_name:
+            return True
+
+    if endpoint.startswith("/") and config.custom_operations:
+        op_name = endpoint.lstrip("/")
+        if op_name in config.custom_operations:
+            models = sorted(config.custom_operations[op_name].models, key=lambda m: m.priority)
+            if models and models[0].litellm_model != litellm_model_name:
+                return True
+
+    return False
+
 async def execute_router_call(
     full_name: str, 
     endpoint_name: str, 
@@ -113,7 +158,47 @@ async def execute_router_call(
         
         model_used = extract_model_used(response)
         p_tok, c_tok, t_tok = extract_usage(response)
+
+        # 1. Cost
+        cost = 0.0
+        try:
+            cost = litellm.completion_cost(completion_response=response)
+        except Exception:
+            cost = 0.0
+
+        # 2. Finish Reason
+        finish_reason = None
+        try:
+            if hasattr(response, "choices") and len(response.choices) > 0:
+                finish_reason = response.choices[0].finish_reason
+        except Exception:
+            pass
+
+        # 3. Fallback Triggered
+        hidden = getattr(response, "_hidden_params", {})
+        litellm_model_name = hidden.get("litellm_model_name")
+        fallback = was_fallback_triggered(full_name, endpoint_name, litellm_model_name)
+
+        # 4. Raw Metadata
+        raw_metadata = {
+            "litellm_call_id": hidden.get("litellm_call_id"),
+            "litellm_model_name": litellm_model_name,
+            "provider": hidden.get("custom_llm_provider"),
+            "provider_response_ms": hidden.get("_response_ms"),
+        }
         
+        usage = getattr(response, "usage", None)
+        if usage:
+            for field in ["completion_tokens_details", "prompt_tokens_details"]:
+                val = getattr(usage, field, None)
+                if val:
+                    try:
+                        raw_metadata[field] = val.model_dump() if hasattr(val, "model_dump") else (dict(val) if hasattr(val, "keys") else vars(val))
+                    except:
+                        raw_metadata[field] = str(val)
+            if hasattr(usage, "cache_read_input_tokens"):
+                raw_metadata["cache_read_input_tokens"] = getattr(usage, "cache_read_input_tokens")
+
         log_usage(
             config_full_name=full_name,
             agent_id=agent_id,
@@ -124,7 +209,12 @@ async def execute_router_call(
             total_tokens=t_tok,
             latency_ms=latency_ms,
             success=True,
-            error=None
+            error=None,
+            cost=cost,
+            finish_reason=finish_reason,
+            error_type=None,
+            fallback_triggered=fallback,
+            raw_metadata=raw_metadata
         )
         
         # Dump model response
@@ -136,6 +226,7 @@ async def execute_router_call(
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
         error_msg = str(e)
+        error_type = classify_error(e)
         
         log_usage(
             config_full_name=full_name,
@@ -147,7 +238,12 @@ async def execute_router_call(
             total_tokens=0,
             latency_ms=latency_ms,
             success=False,
-            error=error_msg
+            error=error_msg,
+            cost=0.0,
+            finish_reason=None,
+            error_type=error_type,
+            fallback_triggered=False,
+            raw_metadata=None
         )
         
         raise HTTPException(status_code=502, detail=error_msg)

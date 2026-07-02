@@ -11,6 +11,7 @@ from router_manager import load_all_configs_on_startup
 from routes.config_routes import router as config_router
 from routes.llm_routes import router as llm_router
 from routes.catalog_routes import router as catalog_router
+from routes.usage_routes import router as usage_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -32,3 +33,4 @@ app.add_middleware(
 app.include_router(config_router)
 app.include_router(llm_router)
 app.include_router(catalog_router)
+app.include_router(usage_router)
