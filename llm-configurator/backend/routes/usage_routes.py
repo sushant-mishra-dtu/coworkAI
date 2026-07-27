@@ -44,11 +44,17 @@ def _sqlite_bucket_expr(bucket: str) -> str:
         return "substr(created_at, 1, 10) || 'T00:00:00'"
 
 
-def _where_clause(config_name: str, cutoff: Optional[datetime]) -> tuple[str, list]:
-    """Build the WHERE clause + params for a config + optional time filter."""
+def _where_clause(config_name: str, cutoff: Optional[datetime], model: Optional[str] = None) -> tuple[str, list]:
+    """Build the WHERE clause + params for a config + optional time/model filter."""
+    where = "WHERE config_full_name = ?"
+    params = [config_name]
     if cutoff:
-        return "WHERE config_full_name = ? AND created_at >= ?", [config_name, cutoff.isoformat()]
-    return "WHERE config_full_name = ?", [config_name]
+        where += " AND created_at >= ?"
+        params.append(cutoff.isoformat())
+    if model:
+        where += " AND model_used = ?"
+        params.append(model)
+    return where, params
 
 
 def _percentile(values: list[float], p: float) -> float:
@@ -67,7 +73,7 @@ def _percentile(values: list[float], p: float) -> float:
 # ─── 1. Summary ───────────────────────────────────────────────────────────────
 
 @router.get("/{config_name}/usage/summary")
-async def usage_summary(config_name: str, range: str = Query("7d", regex="^(24h|7d|30d|all)$")):
+async def usage_summary(config_name: str, range: str = Query("7d", regex="^(24h|7d|30d|all)$"), model: Optional[str] = Query(None)):
     cutoff = _resolve_range(range)
 
     def _compute_period(cutoff_start: Optional[datetime], cutoff_end: Optional[datetime] = None):
@@ -82,6 +88,9 @@ async def usage_summary(config_name: str, range: str = Query("7d", regex="^(24h|
             if cutoff_end:
                 where += " AND created_at < ?"
                 params.append(cutoff_end.isoformat())
+            if model:
+                where += " AND model_used = ?"
+                params.append(model)
 
             cursor.execute(f'''
                 SELECT
@@ -142,13 +151,14 @@ async def usage_summary(config_name: str, range: str = Query("7d", regex="^(24h|
 async def usage_timeseries(
     config_name: str,
     range: str = Query("7d", regex="^(24h|7d|30d|all)$"),
-    bucket: Optional[str] = Query(None, regex="^(1h|1d)$")
+    bucket: Optional[str] = Query(None, regex="^(1h|1d)$"),
+    model: Optional[str] = Query(None)
 ):
     cutoff = _resolve_range(range)
     bucket = bucket or _auto_bucket(range)
     bucket_expr = _sqlite_bucket_expr(bucket)
 
-    where, params = _where_clause(config_name, cutoff)
+    where, params = _where_clause(config_name, cutoff, model)
 
     # Get config limits
     config = _configs.get(config_name)

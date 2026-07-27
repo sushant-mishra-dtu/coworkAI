@@ -149,6 +149,7 @@ export default function ConfiguratorDetail() {
   const [byOperation, setByOperation] = useState(null);
   const [recentLogs, setRecentLogs] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [selectedModel, setSelectedModel] = useState('all');
 
   // ─── Data Loading ────────────────────────────────────────────────────────
   const loadConfig = async () => {
@@ -169,9 +170,10 @@ export default function ConfiguratorDetail() {
   const loadDashboard = useCallback(async () => {
     setDashboardLoading(true);
     try {
+      const modelParam = selectedModel && selectedModel !== 'all' ? `&model=${encodeURIComponent(selectedModel)}` : '';
       const [summaryRes, tsRes, modelRes, opRes, logsRes] = await Promise.all([
-        configApi.get(`/llm/${fullName}/usage/summary?range=${timeRange}`),
-        configApi.get(`/llm/${fullName}/usage/timeseries?range=${timeRange}`),
+        configApi.get(`/llm/${fullName}/usage/summary?range=${timeRange}${modelParam}`),
+        configApi.get(`/llm/${fullName}/usage/timeseries?range=${timeRange}${modelParam}`),
         configApi.get(`/llm/${fullName}/usage/by-model?range=${timeRange}`),
         configApi.get(`/llm/${fullName}/usage/by-operation?range=${timeRange}`),
         configApi.get(`/llm/${fullName}/logs/recent?limit=50`),
@@ -186,7 +188,7 @@ export default function ConfiguratorDetail() {
     } finally {
       setDashboardLoading(false);
     }
-  }, [fullName, timeRange]);
+  }, [fullName, timeRange, selectedModel]);
 
   useEffect(() => { loadConfig(); }, [fullName]);
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
@@ -207,6 +209,12 @@ export default function ConfiguratorDetail() {
         : new Date(d.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
     }));
   }, [timeseries]);
+
+  // Model options derived from byModel data
+  const modelOptions = useMemo(() => {
+    if (!byModel) return [];
+    return byModel.filter(m => m.model_used && m.model_used !== '(all models failed)').map(m => m.model_used);
+  }, [byModel]);
 
   const hasData = useMemo(() => summary?.current_period?.calls > 0, [summary]);
   const configLimits = timeseries?.config_limits || {};
@@ -308,6 +316,19 @@ export default function ConfiguratorDetail() {
               </button>
             ))}
           </div>
+          {/* Model Filter */}
+          {modelOptions.length > 0 && (
+            <select
+              value={selectedModel}
+              onChange={e => setSelectedModel(e.target.value)}
+              className="px-3 py-1.5 text-xs font-semibold border border-border rounded-lg bg-surface text-text-primary outline-none focus:border-primary transition-colors max-w-[200px] truncate"
+            >
+              <option value="all">All Models</option>
+              {modelOptions.map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          )}
           <Link to={`/llm-configurator/${config.full_name}/edit`} className="px-4 py-2 bg-surface border border-border text-text-primary rounded-btn text-sm font-medium hover:bg-background transition-colors shadow-sm">
             Edit Config
           </Link>
@@ -368,6 +389,7 @@ export default function ConfiguratorDetail() {
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6B7280' }} />
                   <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} />
                   <Tooltip content={<ChartTooltipContent />} />
+                  <Legend verticalAlign="top" align="right" iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingBottom: 8 }} />
                   <Bar dataKey="calls" fill={CHART_COLORS.primary} radius={[4, 4, 0, 0]} name="Requests" />
                 </BarChart>
               </ResponsiveContainer>
@@ -384,6 +406,7 @@ export default function ConfiguratorDetail() {
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6B7280' }} />
                   <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} tickFormatter={v => fmt(v)} />
                   <Tooltip content={<ChartTooltipContent />} />
+                  <Legend verticalAlign="top" align="right" iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingBottom: 8 }} />
                   <Area type="monotone" dataKey="prompt_tokens" stackId="1" fill="#DBEAFE" stroke={CHART_COLORS.primary} name="Prompt Tokens" />
                   <Area type="monotone" dataKey="completion_tokens" stackId="1" fill="#EDE9FE" stroke={CHART_COLORS.purple} name="Completion Tokens" />
                 </AreaChart>
@@ -401,6 +424,7 @@ export default function ConfiguratorDetail() {
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6B7280' }} />
                   <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} tickFormatter={v => '$' + v.toFixed(3)} />
                   <Tooltip content={<ChartTooltipContent />} />
+                  <Legend verticalAlign="top" align="right" iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingBottom: 8 }} />
                   <Area type="monotone" dataKey="cost" fill="#FEF3C7" stroke={CHART_COLORS.amber} name="Cost (USD)" />
                 </AreaChart>
               </ResponsiveContainer>
@@ -417,6 +441,7 @@ export default function ConfiguratorDetail() {
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6B7280' }} />
                   <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} tickFormatter={v => fmt(v) + 'ms'} />
                   <Tooltip content={<ChartTooltipContent />} />
+                  <Legend verticalAlign="top" align="right" iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingBottom: 8 }} />
                   <Line type="monotone" dataKey="avg_latency_ms" stroke={CHART_COLORS.teal} strokeWidth={2} dot={false} name="Avg Latency (ms)" />
                   <Line type="monotone" dataKey="p95_latency_ms" stroke={CHART_COLORS.rose} strokeWidth={2} dot={false} strokeDasharray="4 3" name="p95 Latency (ms)" />
                 </LineChart>
@@ -438,6 +463,7 @@ export default function ConfiguratorDetail() {
                     return Math.ceil(max);
                   }]} />
                   <Tooltip content={<ChartTooltipContent />} />
+                  <Legend verticalAlign="top" align="right" iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingBottom: 8 }} />
                   <Bar dataKey="peak_tpm" name="Peak TPM" fill={CHART_COLORS.primary} radius={[4, 4, 0, 0]} />
                   {configLimits.tpm_limit && (
                     <ReferenceLine
@@ -467,6 +493,7 @@ export default function ConfiguratorDetail() {
                     return Math.ceil(max);
                   }]} />
                   <Tooltip content={<ChartTooltipContent />} />
+                  <Legend verticalAlign="top" align="right" iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingBottom: 8 }} />
                   <Bar dataKey="peak_rpm" name="Peak RPM" fill={CHART_COLORS.purple} radius={[4, 4, 0, 0]} />
                   {configLimits.rpm_limit && (
                     <ReferenceLine

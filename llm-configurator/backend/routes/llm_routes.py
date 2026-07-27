@@ -6,6 +6,12 @@ from typing import Optional, Any
 import os
 import litellm
 
+from guardrail_runner import run_guardrails
+
+class GuardrailBlockException(Exception):
+    def __init__(self, reason: str):
+        self.reason = reason
+
 from router_manager import get_router, _configs, get_operations, has_vision, get_capabilities, get_custom_op_description
 from schemas import RESERVED_SEGMENTS
 from rate_limiter import rate_limiter
@@ -72,6 +78,44 @@ async def pre_flight_check(full_name: str, operation: str, body: dict):
             prompt = body.get("prompt")
             if isinstance(prompt, str):
                 body["prompt"] = apply_pii_masking(prompt)
+
+    # -----------------------------------------------------
+    # PRE-HOOK: Custom Guardrails
+    # -----------------------------------------------------
+    text_to_check = ""
+    if operation in ("chat", "vision"):
+        messages = body.get("messages", [])
+        if messages:
+            last_msg = messages[-1]
+            if last_msg.get("role") == "user":
+                content = last_msg.get("content")
+                if isinstance(content, str):
+                    text_to_check = content
+                elif isinstance(content, list):
+                    text_to_check = " ".join([p.get("text", "") for p in content if isinstance(p, dict) and p.get("type") == "text"])
+    elif operation == "completion":
+        prompt = body.get("prompt")
+        if isinstance(prompt, str):
+            text_to_check = prompt
+            
+    if text_to_check:
+        result = await run_guardrails("pre", full_name, text_to_check, config)
+        if result["blocked"]:
+            raise GuardrailBlockException(result["reason"])
+        if result["modified_text"]:
+            # Apply redaction
+            if operation in ("chat", "vision"):
+                last_msg = body["messages"][-1]
+                content = last_msg.get("content")
+                if isinstance(content, str):
+                    last_msg["content"] = result["modified_text"]
+                elif isinstance(content, list):
+                    for p in content:
+                        if isinstance(p, dict) and p.get("type") == "text":
+                            p["text"] = result["modified_text"]
+                            break
+            elif operation == "completion":
+                body["prompt"] = result["modified_text"]
                 
     return config
 
@@ -156,6 +200,44 @@ async def execute_router_call(
         response = await operation_coro
         latency_ms = (time.time() - start_time) * 1000
         
+        # -----------------------------------------------------
+        # POST-HOOK: Custom Guardrails
+        # -----------------------------------------------------
+        is_stream = False
+        import inspect
+        if inspect.isasyncgen(response) or inspect.isgenerator(response):
+            is_stream = True
+            
+        config = _configs.get(full_name)
+        if config:
+            if not is_stream:
+                text_to_check = ""
+                if endpoint_name == "/chat":
+                    if hasattr(response, "choices") and len(response.choices) > 0:
+                        msg = response.choices[0].message
+                        text_to_check = getattr(msg, "content", "") or ""
+                elif endpoint_name == "/completion":
+                    if hasattr(response, "choices") and len(response.choices) > 0:
+                        text_to_check = getattr(response.choices[0], "text", "") or ""
+                        
+                if text_to_check:
+                    result = await run_guardrails("post", full_name, text_to_check, config)
+                    if result["blocked"]:
+                        raise GuardrailBlockException(result["reason"])
+                    if result["modified_text"]:
+                        if endpoint_name == "/chat":
+                            response.choices[0].message.content = result["modified_text"]
+                        elif endpoint_name == "/completion":
+                            response.choices[0].text = result["modified_text"]
+            else:
+                # Streaming: skip post guardrails and log
+                from db import log_guardrail_event
+                if hasattr(config, "guardrails") and hasattr(config.guardrails, "custom"):
+                    for cg in config.guardrails.custom:
+                        if cg.enabled and cg.stage in ("post", "both"):
+                            log_guardrail_event(full_name, cg.name, "post", "skipped (streaming)", 0.0)
+
+        
         model_used = extract_model_used(response)
         p_tok, c_tok, t_tok = extract_usage(response)
 
@@ -223,6 +305,26 @@ async def execute_router_call(
         
         return JSONResponse(content=resp_dict)
         
+    except GuardrailBlockException as e:
+        latency_ms = (time.time() - start_time) * 1000
+        log_usage(
+            config_full_name=full_name,
+            agent_id=agent_id,
+            endpoint=endpoint_name,
+            model_used=None,
+            prompt_tokens=0,
+            completion_tokens=0,
+            total_tokens=0,
+            latency_ms=latency_ms,
+            success=False,
+            error=f"Blocked by guardrail: {e.reason}",
+            cost=0.0,
+            finish_reason="guardrail_block",
+            error_type="guardrail_block",
+            fallback_triggered=False,
+            raw_metadata=None
+        )
+        return JSONResponse(content={"blocked": True, "reason": e.reason})
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
         error_msg = str(e)

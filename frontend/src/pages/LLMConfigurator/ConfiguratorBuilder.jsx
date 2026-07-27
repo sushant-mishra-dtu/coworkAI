@@ -13,6 +13,7 @@ import {
   TrashIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
+import CustomGuardrailsSection from './CustomGuardrailsSection';
 
 const RESERVED_SEGMENTS = ['chat', 'completion', 'embedding', 'image_generation', 'audio_transcription', 'audio_speech', 'vision', 'completions', 'embeddings', 'images', 'audio', 'usage', 'capabilities'];
 
@@ -777,6 +778,11 @@ export default function ConfiguratorBuilder() {
                 <span className="text-sm font-medium text-text-secondary">Profanity Filter <span className="text-[10px] bg-surface px-1.5 py-0.5 rounded text-text-tertiary uppercase ml-1">Coming Soon</span></span>
               </label>
             </div>
+            
+            <CustomGuardrailsSection 
+              customGuardrails={guardrails.custom || []}
+              onChange={(updated) => setGuardrails({...guardrails, custom: updated})}
+            />
           </div>
 
           {/* Footer Actions */}

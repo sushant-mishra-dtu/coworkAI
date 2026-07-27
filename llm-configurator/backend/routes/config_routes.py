@@ -12,11 +12,23 @@ from config_store import (
     ConfigNotFoundError
 )
 import router_manager
+from ssrf import validate_url
+from encryption import encrypt_secret
 
 router = APIRouter(prefix="/configs", tags=["configs"])
 
 @router.post("", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def create_new_config(config_req: ConfigRequest):
+    try:
+        if config_req.guardrails and config_req.guardrails.custom:
+            for cg in config_req.guardrails.custom:
+                validate_url(cg.url, allow_local=cg.allow_local)
+                if cg.secret_ciphertext and not cg.secret_ciphertext.startswith("gAAAAA"):
+                    # Basic check: if it doesn't look like a Fernet token, encrypt it
+                    cg.secret_ciphertext = encrypt_secret(cg.secret_ciphertext)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
     try:
         config_resp = create_config(config_req)
     except ConfigAlreadyExistsError as e:
@@ -47,6 +59,16 @@ async def get_single_config(full_name: str):
 
 @router.put("/{full_name}", response_model=Dict[str, Any])
 async def update_existing_config(full_name: str, config_req: ConfigRequest):
+    try:
+        if config_req.guardrails and config_req.guardrails.custom:
+            for cg in config_req.guardrails.custom:
+                validate_url(cg.url, allow_local=cg.allow_local)
+                if cg.secret_ciphertext and not cg.secret_ciphertext.startswith("gAAAAA"):
+                    # Basic check: if it doesn't look like a Fernet token, encrypt it
+                    cg.secret_ciphertext = encrypt_secret(cg.secret_ciphertext)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
     try:
         config_resp = update_config(full_name, config_req)
     except ConfigNotFoundError as e:

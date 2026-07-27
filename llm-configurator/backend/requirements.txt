@@ -1,5 +1,18 @@
-fastapi==0.115.12
-uvicorn==0.34.3
-litellm==1.72.4
-pydantic==2.11.3
-python-dotenv==1.1.0
+# ──────────────────────────────────────────────────────────────
+# Requirements: LLM Configurator, LLM Catalogue & Usage Dashboard
+# Backend: llm-configurator/backend (port 8001)
+# ──────────────────────────────────────────────────────────────
+
+# Core Framework
+fastapi>=0.115.12
+uvicorn>=0.34.3
+pydantic>=2.11.3
+
+# LLM Routing & Cost API
+litellm>=1.72.4
+
+# Environment
+python-dotenv>=1.1.0
+
+# Encryption (for API key storage in LLM Catalogue)
+cryptography>=41.0.0

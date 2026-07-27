@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Cog8ToothIcon, CpuChipIcon } from '@heroicons/react/24/outline';
+import { Cog8ToothIcon, CpuChipIcon, PlusIcon, InformationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const cardVariants = {
   hidden: { opacity: 0, y: 20, scale: 0.97 },
@@ -28,6 +28,63 @@ export default function LLMCatalogue() {
   const [msg, setMsg] = useState(null);
   const [configModalModel, setConfigModalModel] = useState(null);
   const [formData, setFormData] = useState({ api_key: '', api_base: '' });
+
+  // Custom model modal state
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customModelData, setCustomModelData] = useState({
+    litellm_model: '',
+    provider: '',
+    api_key: '',
+    api_base: ''
+  });
+  const [customModelSaving, setCustomModelSaving] = useState(false);
+
+  const handleCustomModelChange = (field, value) => {
+    setCustomModelData(prev => {
+      const updated = { ...prev, [field]: value };
+      // Auto-suggest provider from model name when it contains '/'
+      if (field === 'litellm_model' && value.includes('/')) {
+        const autoProvider = value.split('/')[0];
+        if (autoProvider && !prev.provider) {
+          updated.provider = autoProvider;
+        }
+        // Only auto-update if the provider hasn't been manually changed to something different
+        if (prev.provider === '' || prev.provider === prev.litellm_model.split('/')[0]) {
+          updated.provider = autoProvider;
+        }
+      }
+      return updated;
+    });
+  };
+
+  const isCustomModelValid = customModelData.litellm_model.includes('/') && customModelData.provider.trim() !== '';
+
+  const saveCustomModel = async (e) => {
+    e.preventDefault();
+    if (!isCustomModelValid) return;
+    setCustomModelSaving(true);
+    try {
+      const res = await fetch(`${CONFIG_API}/catalog/global_models`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          litellm_model: customModelData.litellm_model,
+          provider: customModelData.provider,
+          api_key: customModelData.api_key || null,
+          api_base: customModelData.api_base || null
+        })
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      setMsg({ ok: true, text: `Custom model "${customModelData.litellm_model}" added successfully` });
+      setShowCustomModal(false);
+      setCustomModelData({ litellm_model: '', provider: '', api_key: '', api_base: '' });
+      loadData();
+    } catch (err) {
+      setMsg({ ok: false, text: 'Failed to add custom model' });
+    } finally {
+      setCustomModelSaving(false);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -133,6 +190,17 @@ export default function LLMCatalogue() {
           </AnimatePresence>
           <h1 className="text-lg font-semibold text-text-primary">Models Catalogue</h1>
         </div>
+        {!selectedProvider && (
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setShowCustomModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-btn text-sm font-medium hover:bg-primary-hover transition-colors shadow-sm"
+          >
+            <PlusIcon className="w-4 h-4" />
+            Add Custom Model
+          </motion.button>
+        )}
       </motion.header>
 
       <div className="flex-1 max-w-5xl w-full mx-auto px-6 lg:px-8 py-8 space-y-8">
@@ -292,6 +360,7 @@ export default function LLMCatalogue() {
         )}
       </div>
 
+      {/* Configure Existing Model Modal */}
       {configModalModel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <motion.div 
@@ -342,6 +411,130 @@ export default function LLMCatalogue() {
           </motion.div>
         </div>
       )}
+
+      {/* Add Custom Model Modal */}
+      <AnimatePresence>
+        {showCustomModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden"
+            >
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-border bg-surface flex items-center justify-between">
+                <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
+                  <PlusIcon className="w-5 h-5 text-primary" />
+                  Add Custom Model
+                </h3>
+                <button onClick={() => setShowCustomModal(false)} className="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-background rounded-md transition-colors">
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={saveCustomModel} className="p-6 space-y-5">
+                {/* Info Box */}
+                <div className="flex gap-3 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                  <InformationCircleIcon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    Add a model not listed in the catalogue. This is useful for <span className="font-semibold text-text-primary">custom fine-tuned models</span>, <span className="font-semibold text-text-primary">private deployments</span>, or providers not yet in LiteLLM's built-in list.
+                  </p>
+                </div>
+
+                {/* Model Name */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">Model Name <span className="text-danger">*</span></label>
+                  <input
+                    type="text"
+                    value={customModelData.litellm_model}
+                    onChange={e => handleCustomModelChange('litellm_model', e.target.value)}
+                    placeholder="openai/gpt-4o"
+                    className={`w-full px-4 py-2.5 bg-background border rounded-btn text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono ${
+                      customModelData.litellm_model && !customModelData.litellm_model.includes('/')
+                        ? 'border-danger/50'
+                        : 'border-border'
+                    }`}
+                  />
+                  <p className="text-[11px] text-text-tertiary leading-relaxed">
+                    Use the format <code className="px-1 py-0.5 bg-surface border border-border rounded text-[10px] font-mono">provider/model-name</code> — e.g. <code className="px-1 py-0.5 bg-surface border border-border rounded text-[10px] font-mono">openai/gpt-4o</code>, <code className="px-1 py-0.5 bg-surface border border-border rounded text-[10px] font-mono">azure/my-deployment</code>, <code className="px-1 py-0.5 bg-surface border border-border rounded text-[10px] font-mono">huggingface/meta-llama/Llama-3</code>
+                  </p>
+                  {customModelData.litellm_model && !customModelData.litellm_model.includes('/') && (
+                    <p className="text-[11px] text-danger font-medium">Model name must contain at least one "/" separator</p>
+                  )}
+                </div>
+
+                {/* Provider */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">Provider <span className="text-danger">*</span></label>
+                  <input
+                    type="text"
+                    value={customModelData.provider}
+                    onChange={e => handleCustomModelChange('provider', e.target.value)}
+                    placeholder="openai"
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-btn text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                  />
+                  <p className="text-[11px] text-text-tertiary">The LLM provider name, e.g. <code className="px-1 py-0.5 bg-surface border border-border rounded text-[10px] font-mono">openai</code>, <code className="px-1 py-0.5 bg-surface border border-border rounded text-[10px] font-mono">azure</code>, <code className="px-1 py-0.5 bg-surface border border-border rounded text-[10px] font-mono">anthropic</code>. Should match the model name prefix.</p>
+                </div>
+
+                {/* API Key */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">API Key <span className="text-xs font-normal text-text-tertiary">(Optional)</span></label>
+                  <input
+                    type="password"
+                    value={customModelData.api_key}
+                    onChange={e => handleCustomModelChange('api_key', e.target.value)}
+                    placeholder="sk-..."
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-btn text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono"
+                  />
+                  <p className="text-[11px] text-text-tertiary">Required for providers that need authentication. Leave blank to use the default key.</p>
+                </div>
+
+                {/* API Base */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-text-primary">API Base <span className="text-xs font-normal text-text-tertiary">(Optional)</span></label>
+                  <input
+                    type="text"
+                    value={customModelData.api_base}
+                    onChange={e => handleCustomModelChange('api_base', e.target.value)}
+                    placeholder="https://my-proxy.example.com/v1"
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-btn text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono"
+                  />
+                  <p className="text-[11px] text-text-tertiary">Custom API endpoint URL for self-hosted or proxy deployments.</p>
+                </div>
+
+                {/* Actions */}
+                <div className="pt-2 flex gap-3 justify-end border-t border-border">
+                  <button
+                    type="button"
+                    onClick={() => { setShowCustomModal(false); setCustomModelData({ litellm_model: '', provider: '', api_key: '', api_base: '' }); }}
+                    className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <motion.button
+                    type="submit"
+                    disabled={!isCustomModelValid || customModelSaving}
+                    whileHover={isCustomModelValid ? { scale: 1.02 } : {}}
+                    whileTap={isCustomModelValid ? { scale: 0.98 } : {}}
+                    className="px-6 py-2 bg-primary text-white rounded-btn text-sm font-medium hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {customModelSaving ? (
+                      <>
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+                        Adding...
+                      </>
+                    ) : (
+                      'Add Model'
+                    )}
+                  </motion.button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

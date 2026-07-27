@@ -56,6 +56,18 @@ def init_db():
             )
         ''')
 
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS guardrail_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                config_full_name TEXT NOT NULL,
+                guardrail_name TEXT NOT NULL,
+                stage TEXT NOT NULL,
+                decision TEXT NOT NULL,
+                latency_ms REAL NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        ''')
+
         # Migrate existing databases: add new columns if they don't exist
         _migrate_usage_logs(cursor)
 
@@ -116,6 +128,24 @@ def log_usage(config_full_name: str, agent_id: str, endpoint: str, model_used: s
             error_type,
             fallback_triggered,
             json.dumps(raw_metadata) if raw_metadata else None
+        ))
+        conn.commit()
+
+def log_guardrail_event(config_full_name: str, guardrail_name: str, stage: str, 
+                        decision: str, latency_ms: float):
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO guardrail_events
+            (config_full_name, guardrail_name, stage, decision, latency_ms, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            config_full_name,
+            guardrail_name,
+            stage,
+            decision,
+            latency_ms,
+            datetime.now(timezone.utc).isoformat()
         ))
         conn.commit()
 

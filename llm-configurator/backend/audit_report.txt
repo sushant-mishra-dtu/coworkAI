@@ -1,0 +1,5 @@
+❌ Ollama detection error: All connection attempts failed
+✅ Model test endpoint correctly handled invalid URL: SSRF check failed: Could not resolve hostname: invalid-test-url.local
+✅ Config created successfully with Custom Models and Guardrails.
+✅ Custom Model API Key correctly redacted in GET response.
+✅ Custom Guardrail Secret correctly redacted in GET response.

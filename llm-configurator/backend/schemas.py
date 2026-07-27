@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import List, Dict, Optional, Set
+from typing import List, Dict, Optional, Set, Literal
 import re
 import litellm
 
@@ -33,9 +33,25 @@ class Restrictions(BaseModel):
     rpm: int = Field(gt=0)
     tpr: int = Field(gt=0)
 
+class CustomGuardrail(BaseModel):
+    name: str
+    adapter_type: Literal["http_generic", "huggingface_inference", "openai_chat_safety"]
+    url: str
+    stage: Literal["pre", "post", "both"]
+    action: Literal["block", "redact", "warn", "log_only"]
+    fail_mode: Literal["fail_open", "fail_closed"]
+    timeout_ms: int = 3000
+    priority: int
+    enabled: bool
+    allow_local: bool = False
+    secret_ciphertext: Optional[str] = None
+    model: Optional[str] = None
+    system_prompt: Optional[str] = None
+
 class Guardrails(BaseModel):
     pii_masking: bool
     profanity_filter: bool
+    custom: List[CustomGuardrail] = Field(default_factory=list)
 
 class ConfigRequest(BaseModel):
     usecase_name: str = Field(..., max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
