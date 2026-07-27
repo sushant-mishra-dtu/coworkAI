@@ -7,6 +7,18 @@
 
 ---
 
+## 📚 Quick Links & Documentation
+
+| Document | Description | Link |
+|---|---|---|
+| 📄 **Core Platform Documentation** | Full architecture, RAG, MCP tool loop, A2A agents, Auth & DB schema | [`DOCUMENTATION_CORE.md`](DOCUMENTATION_CORE.md) |
+| 📄 **LLM Configurator Documentation** | Gateway architecture, fallback chains, guardrails & analytics dashboard | [`llm-configurator/DOCUMENTATION.md`](llm-configurator/DOCUMENTATION.md) |
+| 📑 **LLM Configurator PDF Spec** | PDF documentation artifact | [`llm-configurator/DOCUMENTATION.pdf`](llm-configurator/DOCUMENTATION.pdf) |
+| 📦 **Core Platform Requirements** | Python dependencies for Part 1 (Port 8000) | [`requirements.txt`](requirements.txt) |
+| 📦 **Configurator Requirements** | Python dependencies for Part 2 (Port 8001) | [`llm-configurator/backend/requirements.txt`](llm-configurator/backend/requirements.txt) |
+
+---
+
 ## 📊 System Architecture & Project Differentiation
 
 ```text
@@ -28,9 +40,14 @@
 │ • Agent-to-Agent (A2A) Framework          │ │ • Per-Config Analytics Dashboard          │
 │ • Team Credit Budgets & Auth (JWT)        │ │ • Global LLM Credentials Catalogue        │
 ├───────────────────────────────────────────┤ ├───────────────────────────────────────────┤
-│ 📂 Requirements:                          │ │ 📂 Requirements:                          │
-│    ./requirements.txt                     │ │    ./llm-configurator/backend/            │
-│                                           │ │    requirements.txt                       │
+│ 📂 Requirements File:                     │ │ 📂 Requirements File:                     │
+│    [requirements.txt](requirements.txt)   │ │    [llm-configurator/backend/            │
+│                                           │ │    requirements.txt](llm-configurator/     │
+│                                           │ │    backend/requirements.txt)              │
+├───────────────────────────────────────────┤ ├───────────────────────────────────────────┤
+│ 📄 Documentation File:                    │ │ 📄 Documentation File:                    │
+│    [DOCUMENTATION_CORE.md]                │ │    [llm-configurator/DOCUMENTATION.md]    │
+│    (DOCUMENTATION_CORE.md)                │ │    (llm-configurator/DOCUMENTATION.md)    │
 ├───────────────────────────────────────────┤ ├───────────────────────────────────────────┤
 │ 💾 Database:                              │ │ 💾 Database:                              │
 │    ./data/cowork.db (SQLite)              │ │    ./llm-configurator/backend/            │
@@ -47,13 +64,13 @@ The project maintains **two independent `requirements.txt` files** tailored to e
 ### 1️⃣ Core Platform Requirements (`requirements.txt`)
 Contains full dependencies for RAG (ChromaDB, SentenceTransformers), Auth (Bcrypt, JWT), and LiteLLM integration.
 
-* **File Location**: [`./requirements.txt`](file:///c:/Users/IT/Documents/ai-cowork/requirements.txt)
+* 🔗 **File Link**: [`requirements.txt`](requirements.txt)
 * **Key Dependencies**: `fastapi`, `uvicorn`, `litellm`, `chromadb`, `sentence-transformers`, `pypdf`, `python-jose`, `passlib`, `cryptography`
 
 ### 2️⃣ LLM Configurator Requirements (`llm-configurator/backend/requirements.txt`)
 Contains lightweight dependencies focused strictly on high-performance LLM routing, validation, and execution analytics.
 
-* **File Location**: [`./llm-configurator/backend/requirements.txt`](file:///c:/Users/IT/Documents/ai-cowork/llm-configurator/backend/requirements.txt)
+* 🔗 **File Link**: [`llm-configurator/backend/requirements.txt`](llm-configurator/backend/requirements.txt)
 * **Key Dependencies**: `fastapi`, `uvicorn`, `pydantic`, `litellm`, `python-dotenv`, `cryptography`
 
 ---
@@ -103,9 +120,8 @@ npm run dev
 
 ---
 
-## 📖 Deep-Dive Documentation
+## 📖 Comprehensive Documentation Links
 
-For detailed architectural walkthroughs, API specs, database schemas, and data flow diagrams, refer to the generated context documents:
-
-* 📄 **Part 1 Core Platform Context**: [`project_context_core.md`](file:///C:/Users/IT/.gemini/antigravity/brain/3d15d1d8-09d6-4d88-8239-a5dac60f0b35/project_context_core.md)
-* 📄 **Part 2 LLM Configurator Context**: Refer to the LLM Configurator section in project transcripts or specs.
+* 📄 **Core Platform Documentation**: [`DOCUMENTATION_CORE.md`](DOCUMENTATION_CORE.md)
+* 📄 **LLM Configurator Documentation**: [`llm-configurator/DOCUMENTATION.md`](llm-configurator/DOCUMENTATION.md)
+* 📑 **LLM Configurator PDF Document**: [`llm-configurator/DOCUMENTATION.pdf`](llm-configurator/DOCUMENTATION.pdf)
