@@ -1,56 +1,58 @@
-# 🚀 AI Cowork — Dual Architecture Workspace
+# AI Cowork
 
-**AI Cowork** is an enterprise-grade AI collaboration platform split into two decoupled micro-services sharing a unified React frontend:
+AI Cowork is a team AI workspace. It runs as two independent backends behind a single React frontend:
 
-1. **Part 1: Core AI Cowork Platform** (Port 8000) — Team workspace with RAG document grounding, Model Context Protocol (MCP) tools, Agent-to-Agent (A2A) orchestration, user authentication, and team credit budgets.
-2. **Part 2: LLM Configurator & Analytics Engine** (Port 8001) — Enterprise LLM gateway manager supporting fallback chains, PII/profanity guardrails, sliding-window rate limits, and real-time per-config usage dashboards.
+1. **Core platform** (port 8000). The team workspace itself: chat, document grounding with RAG, MCP tool calling, agent-to-agent calls, login, and per-team token budgets.
+2. **LLM Configurator** (port 8001). A gateway for managing LLM access: fallback chains across models, guardrails, rate limits, and per-config usage analytics.
+
+The two services share nothing but the frontend. They have separate entry points, separate dependency files, and separate databases, so either one can run without the other.
 
 ---
 
-## 📚 Quick Links & Documentation
+## Quick links
 
-| Document | Description | Link |
+| Document | What it covers | Link |
 |---|---|---|
-| 📄 **Core Platform Documentation** | Full architecture, RAG, MCP tool loop, A2A agents, Auth & DB schema | [`DOCUMENTATION_CORE.md`](DOCUMENTATION_CORE.md) |
-| 📄 **LLM Configurator Documentation** | Gateway architecture, fallback chains, guardrails & analytics dashboard | [`llm-configurator/DOCUMENTATION.md`](llm-configurator/DOCUMENTATION.md) |
-| 📑 **LLM Configurator PDF Spec** | PDF documentation artifact | [`llm-configurator/DOCUMENTATION.pdf`](llm-configurator/DOCUMENTATION.pdf) |
-| 📦 **Core Platform Requirements** | Python dependencies for Part 1 (Port 8000) | [`requirements.txt`](requirements.txt) |
-| 📦 **Configurator Requirements** | Python dependencies for Part 2 (Port 8001) | [`llm-configurator/backend/requirements.txt`](llm-configurator/backend/requirements.txt) |
+| Core platform documentation | Architecture, RAG, MCP tool loop, A2A agents, auth, DB schema | [`DOCUMENTATION_CORE.md`](DOCUMENTATION_CORE.md) |
+| LLM Configurator documentation | Gateway architecture, fallback chains, guardrails, analytics | [`llm-configurator/DOCUMENTATION.md`](llm-configurator/DOCUMENTATION.md) |
+| LLM Configurator PDF | Same documentation as a PDF | [`llm-configurator/DOCUMENTATION.pdf`](llm-configurator/DOCUMENTATION.pdf) |
+| Core platform requirements | Python dependencies for port 8000 | [`requirements.txt`](requirements.txt) |
+| Configurator requirements | Python dependencies for port 8001 | [`llm-configurator/backend/requirements.txt`](llm-configurator/backend/requirements.txt) |
 
 ---
 
-## 📊 System Architecture
+## System architecture
 
 ```mermaid
 flowchart TD
-    subgraph FE["🖥️ Vite + React Frontend — localhost:5173"]
-        UI["Chat · Upload · Models<br/>MCP · Agents · Admin"]
-        CFG["LLM Configurator UI<br/>Catalogue · Builder · Dashboard"]
+    subgraph FE["Vite + React frontend, localhost:5173"]
+        UI["Chat, Upload, Models,<br/>MCP, Agents, Admin"]
+        CFG["LLM Configurator UI<br/>Catalogue, Builder, Dashboard"]
     end
 
-    subgraph P1["🧩 PART 1 — AI Cowork Core Platform :8000"]
+    subgraph P1["Part 1: core platform, port 8000"]
         CORE["backend/main.py<br/>FastAPI"]
-        R1["/auth · /chat · /models"]
-        R2["/mcp · /a2a · /rag · /admin"]
+        R1["/auth, /chat, /models"]
+        R2["/mcp, /a2a, /rag, /admin"]
     end
 
-    subgraph P2["⚙️ PART 2 — LLM Configurator & Analytics :8001"]
+    subgraph P2["Part 2: LLM Configurator, port 8001"]
         GW["llm-configurator/backend/main.py<br/>FastAPI"]
-        R3["/configs · /catalog · /guardrails"]
-        R4["/llm/config/* · /usage"]
+        R3["/configs, /catalog, /guardrails"]
+        R4["/llm/config/*, /usage"]
     end
 
-    subgraph DATA["💾 Persistence"]
-        DB1[("cowork.db<br/>SQLite · 10 tables")]
-        VEC[("ChromaDB<br/>Vector Store")]
+    subgraph DATA["Storage"]
+        DB1[("cowork.db<br/>SQLite, 10 tables")]
+        VEC[("ChromaDB<br/>vector store")]
         DB2[("configurator.db<br/>SQLite + configs/*.json")]
     end
 
-    subgraph EXT["🌐 External Services"]
-        LLM["LLM Providers<br/>OpenAI · Anthropic<br/>Gemini · Groq · Ollama"]
-        MCP["MCP Servers"]
-        A2A["A2A Agents"]
-        GUARD["Guardrail<br/>Endpoints"]
+    subgraph EXT["External services"]
+        LLM["LLM providers<br/>OpenAI, Anthropic,<br/>Gemini, Groq, Ollama"]
+        MCP["MCP servers"]
+        A2A["A2A agents"]
+        GUARD["Guardrail<br/>endpoints"]
     end
 
     UI -->|"REST :8000"| CORE
@@ -83,45 +85,45 @@ flowchart TD
 
 ---
 
-## 🧭 Project Differentiation
+## What each service does
 
-The two services are fully decoupled — separate entry points, separate dependency files, separate databases.
-
-| | 🧩 **Part 1 — Core Platform** | ⚙️ **Part 2 — LLM Configurator** |
+| | Part 1: core platform | Part 2: LLM Configurator |
 |---|---|---|
-| **Port** | `8000` | `8001` |
-| **Entry Point** | [`backend/main.py`](backend/main.py) | [`llm-configurator/backend/main.py`](llm-configurator/backend/main.py) |
-| **Capabilities** | Chat workspace & history<br>Document RAG (ChromaDB + vector store)<br>MCP server protocol integration<br>Agent-to-Agent (A2A) framework<br>Team credit budgets & Auth (JWT) | Dynamic multi-model fallback chains<br>Enterprise restrictions (TPM/RPM/TPR)<br>Guardrails (PII masking, profanity)<br>Per-config analytics dashboard<br>Global LLM credentials catalogue |
-| **Requirements** | [`requirements.txt`](requirements.txt) | [`llm-configurator/backend/requirements.txt`](llm-configurator/backend/requirements.txt) |
-| **Documentation** | [`DOCUMENTATION_CORE.md`](DOCUMENTATION_CORE.md) | [`llm-configurator/DOCUMENTATION.md`](llm-configurator/DOCUMENTATION.md) |
-| **Database** | `./data/cowork.db` (SQLite) + ChromaDB | `./llm-configurator/backend/configurator.db` (SQLite) + `configs/*.json` |
+| Port | `8000` | `8001` |
+| Entry point | [`backend/main.py`](backend/main.py) | [`llm-configurator/backend/main.py`](llm-configurator/backend/main.py) |
+| Handles | Chat workspace and history<br>Document RAG (ChromaDB + vector store)<br>MCP server integration<br>Agent-to-agent (A2A) calls<br>Team credit budgets and JWT auth | Multi-model fallback chains<br>TPM/RPM/TPR restrictions<br>Guardrails (PII masking, profanity)<br>Per-config analytics dashboard<br>Global LLM credentials catalogue |
+| Requirements | [`requirements.txt`](requirements.txt) | [`llm-configurator/backend/requirements.txt`](llm-configurator/backend/requirements.txt) |
+| Documentation | [`DOCUMENTATION_CORE.md`](DOCUMENTATION_CORE.md) | [`llm-configurator/DOCUMENTATION.md`](llm-configurator/DOCUMENTATION.md) |
+| Database | `./data/cowork.db` (SQLite) plus ChromaDB | `./llm-configurator/backend/configurator.db` (SQLite) plus `configs/*.json` |
 
 ---
 
-## 🔄 Core Platform — `POST /chat/ask` Execution Flow
+## How a chat request is handled
+
+`POST /chat/ask` on the core platform:
 
 ```mermaid
 flowchart TD
     A["Client request<br/>POST /chat/ask"] --> B{"Budget<br/>exceeded?"}
-    B -->|"Yes"| B1["HTTP 429<br/>Budget exceeded"]
+    B -->|"Yes"| B1["HTTP 429<br/>budget exceeded"]
     B -->|"No"| C{"use_documents?"}
     C -->|"Yes"| C1["RAG retrieval<br/>ChromaDB similarity search"]
-    C -->|"No"| D["History assembly<br/>last 6 messages"]
+    C -->|"No"| D["Assemble history<br/>last 6 messages"]
     C1 --> D
-    D --> E["Prompt construction<br/>RAG mode or Knowledge mode"]
+    D --> E["Build prompt<br/>RAG mode or knowledge mode"]
     E --> F{"Model routing"}
 
     F -->|"custom_a2a"| G1["Direct JSON-RPC<br/>to external agent"]
     F -->|"ollama/*"| G2["litellm.completion<br/>api_base = OLLAMA_URL"]
     F -->|"provider/*"| G3["load_team_credentials<br/>litellm.completion"]
 
-    G2 --> H["MCP tool discovery<br/>inject as OpenAI tools"]
+    G2 --> H["Discover MCP tools,<br/>inject as OpenAI tools"]
     G3 --> H
     H --> I{"Tool loop<br/>max 5 rounds"}
-    I -->|"Tool requested"| I1["execute_mcp_tool<br/>append result · re-call LLM"]
+    I -->|"Tool requested"| I1["execute_mcp_tool,<br/>append result, re-call LLM"]
     I1 --> I
-    I -->|"Tool call failed"| I2["Fallback: retry without tools"]
-    I -->|"No more tool calls"| J["Save turn<br/>chat_history + usage_logs"]
+    I -->|"Tool call failed"| I2["Retry without tools"]
+    I -->|"No more tool calls"| J["Save turn to<br/>chat_history + usage_logs"]
     I2 --> J
     G1 --> J
     J --> K["Response to client"]
@@ -132,9 +134,9 @@ flowchart TD
     class J,K ok
 ```
 
----
+## How a Configurator request is handled
 
-## 🛡️ LLM Configurator — Request Pipeline
+`POST /{config_name}/chat` on the gateway:
 
 ```mermaid
 flowchart TD
@@ -142,23 +144,23 @@ flowchart TD
     B --> C{"Config<br/>active?"}
     C -->|"No"| X1["404 / 403"]
     C -->|"Yes"| D{"Operation<br/>supported?"}
-    D -->|"No"| X2["400 Unsupported operation"]
+    D -->|"No"| X2["400 unsupported operation"]
     D -->|"Yes"| E{"RPM<br/>limit OK?"}
-    E -->|"Exceeded"| X3["429 Rate limited"]
+    E -->|"Exceeded"| X3["429 rate limited"]
     E -->|"OK"| F{"TPR<br/>cap OK?"}
     F -->|"Exceeded"| X4["Token cap exceeded"]
     F -->|"OK"| G["PII masking<br/>regex redaction"]
     G --> H{"Pre-stage<br/>guardrails"}
-    H -->|"Blocked"| X5["Blocked · reason returned"]
+    H -->|"Blocked"| X5["Blocked, reason returned"]
     H -->|"Passed"| I["litellm.Router<br/>acompletion with fallback chain"]
     I --> J{"Primary<br/>model OK?"}
-    J -->|"Fails"| J1["Failover to priority 2, 3, …"]
+    J -->|"Fails"| J1["Fail over to priority 2, 3, ..."]
     J -->|"OK"| K["Provider response"]
     J1 --> K
     K --> L{"Post-stage<br/>guardrails"}
-    L -->|"Blocked"| X6["Blocked · reason returned"]
-    L -->|"Passed"| M["log_usage → configurator.db"]
-    M --> N["JSONResponse to client"]
+    L -->|"Blocked"| X6["Blocked, reason returned"]
+    L -->|"Passed"| M["log_usage to configurator.db"]
+    M --> N["JSON response to client"]
 
     classDef err fill:#4a1d1d,stroke:#f87171,stroke-width:2px,color:#fff
     classDef ok fill:#1f3d2b,stroke:#4ade80,stroke-width:2px,color:#fff
@@ -168,32 +170,28 @@ flowchart TD
 
 ---
 
-## 📋 Requirements & Dependencies
+## Requirements
 
-The project maintains **two independent `requirements.txt` files** tailored to each service:
+There are two separate `requirements.txt` files, one per service. Install whichever service you are running.
 
-### 1️⃣ Core Platform Requirements (`requirements.txt`)
-Contains full dependencies for RAG (ChromaDB, SentenceTransformers), Auth (Bcrypt, JWT), and LiteLLM integration.
+**Core platform** ([`requirements.txt`](requirements.txt)) covers RAG (ChromaDB, SentenceTransformers), auth (bcrypt, JWT), and LiteLLM:
 
-* 🔗 **File Link**: [`requirements.txt`](requirements.txt)
-* **Key Dependencies**: `fastapi`, `uvicorn`, `litellm`, `chromadb`, `sentence-transformers`, `pypdf`, `python-jose`, `passlib`, `cryptography`
+`fastapi`, `uvicorn`, `litellm`, `chromadb`, `sentence-transformers`, `pypdf`, `python-jose`, `passlib`, `cryptography`
 
-### 2️⃣ LLM Configurator Requirements (`llm-configurator/backend/requirements.txt`)
-Contains lightweight dependencies focused strictly on high-performance LLM routing, validation, and execution analytics.
+**LLM Configurator** ([`llm-configurator/backend/requirements.txt`](llm-configurator/backend/requirements.txt)) is lighter, covering routing, validation, and usage logging only:
 
-* 🔗 **File Link**: [`llm-configurator/backend/requirements.txt`](llm-configurator/backend/requirements.txt)
-* **Key Dependencies**: `fastapi`, `uvicorn`, `pydantic`, `litellm`, `python-dotenv`, `cryptography`
+`fastapi`, `uvicorn`, `pydantic`, `litellm`, `python-dotenv`, `cryptography`
 
 ---
 
-## 🛠️ Quick Start Guide
+## Running it
 
 ```mermaid
 flowchart LR
-    S1["1️⃣ Core Platform<br/>pip install -r requirements.txt<br/>uvicorn backend.main:app --port 8000"]
-    S2["2️⃣ LLM Configurator<br/>cd llm-configurator/backend<br/>uvicorn main:app --port 8001"]
-    S3["3️⃣ Frontend<br/>cd frontend<br/>npm install then npm run dev"]
-    S4["✅ Open<br/>http://localhost:5173"]
+    S1["1. Core platform<br/>pip install -r requirements.txt<br/>uvicorn backend.main:app --port 8000"]
+    S2["2. LLM Configurator<br/>cd llm-configurator/backend<br/>uvicorn main:app --port 8001"]
+    S3["3. Frontend<br/>cd frontend<br/>npm install, npm run dev"]
+    S4["Open<br/>http://localhost:5173"]
 
     S1 --> S2 --> S3 --> S4
 
@@ -203,51 +201,43 @@ flowchart LR
     class S4 done
 ```
 
-### Step 1: Install & Run Part 1 (Core Platform Backend)
+### 1. Core platform backend
 
 ```bash
-# From workspace root
+# from the workspace root
 pip install -r requirements.txt
-
-# Start Core Platform Backend (Port 8000)
 python -m uvicorn backend.main:app --port 8000 --reload
 ```
 
-### Step 2: Install & Run Part 2 (LLM Configurator Backend)
+### 2. LLM Configurator backend
 
 ```bash
-# Navigate to configurator backend
 cd llm-configurator/backend
-
-# Install configurator dependencies
 pip install -r requirements.txt
-
-# Start Configurator Backend (Port 8001)
 python -m uvicorn main:app --port 8001 --reload
 ```
 
-*(Optional: Seed synthetic usage data for the Configurator Dashboard — run from `llm-configurator/backend`)*
+To populate the Configurator dashboard with synthetic usage data, run this from `llm-configurator/backend`:
+
 ```bash
 python scripts/seed_usage.py
 ```
 
-### Step 3: Run the React Frontend
+### 3. Frontend
 
 ```bash
-# From workspace root
+# from the workspace root
 cd frontend
-
-# Install node dependencies
 npm install
-
-# Start Vite dev server (Port 5173)
 npm run dev
 ```
 
+The frontend serves on port 5173 and talks to both backends.
+
 ---
 
-## 📖 Comprehensive Documentation Links
+## Comprehensive Documentation Links
 
-* 📄 **Core Platform Documentation**: [`DOCUMENTATION_CORE.md`](DOCUMENTATION_CORE.md)
-* 📄 **LLM Configurator Documentation**: [`llm-configurator/DOCUMENTATION.md`](llm-configurator/DOCUMENTATION.md)
-* 📑 **LLM Configurator PDF Document**: [`llm-configurator/DOCUMENTATION.pdf`](llm-configurator/DOCUMENTATION.pdf)
+* **Core Platform Documentation**: [`DOCUMENTATION_CORE.md`](DOCUMENTATION_CORE.md)
+* **LLM Configurator Documentation**: [`llm-configurator/DOCUMENTATION.md`](llm-configurator/DOCUMENTATION.md)
+* **LLM Configurator PDF Document**: [`llm-configurator/DOCUMENTATION.pdf`](llm-configurator/DOCUMENTATION.pdf)

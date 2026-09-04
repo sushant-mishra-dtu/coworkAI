@@ -66,9 +66,9 @@ Managed by `backend/database.py`. 10 tables:
 
 | File | Key Functions/Classes |
 |---|---|
-| `routes.py` | `POST /auth/signup` — creates user + JWT; `POST /auth/login` — verifies bcrypt hash + JWT; `GET /auth/me` — returns current user |
+| `routes.py` | `POST /auth/signup`: creates user + JWT; `POST /auth/login`: verifies bcrypt hash + JWT; `GET /auth/me`: returns current user |
 | `utils.py` | `hash_password()`, `verify_password()` (passlib/bcrypt), `create_token()` (python-jose JWT), `get_current_user()` (FastAPI dependency extracts user from JWT header) |
-| `encryption.py` | `encrypt_secret(plain)` / `decrypt_secret(cipher)` — Fernet symmetric encryption for API keys stored in DB. Auto-generates key to `.env` if missing. |
+| `encryption.py` | `encrypt_secret(plain)` / `decrypt_secret(cipher)`: Fernet symmetric encryption for API keys stored in DB. Auto-generates key to `.env` if missing. |
 | `models.py` | Pydantic models: `UserCreate`, `UserLogin`, `UserResponse`, `TokenResponse` |
 
 ---
@@ -77,10 +77,10 @@ Managed by `backend/database.py`. 10 tables:
 
 | File | Key Functions |
 |---|---|
-| `routes.py` | `POST /chat/ask` — main chat endpoint; `GET /chat/models` — list Ollama models; `GET /chat/usage` — team monthly token usage |
-| `memory.py` | `get_history(user_id)` — retrieves last N Q&A pairs; `save_turn(...)` — logs chat + tokens to DB |
+| `routes.py` | `POST /chat/ask`: main chat endpoint; `GET /chat/models`: list Ollama models; `GET /chat/usage`: team monthly token usage |
+| `memory.py` | `get_history(user_id)`: retrieves last N Q&A pairs; `save_turn(...)`: logs chat + tokens to DB |
 
-#### `POST /chat/ask` — Full Execution Flow:
+#### `POST /chat/ask` execution flow
 ```text
 1. Budget Check → monthly_used >= token_limit? → HTTP 429
 2. RAG Retrieval → if use_documents=true, fetch relevant chunks from ChromaDB
@@ -105,7 +105,7 @@ Managed by `backend/database.py`. 10 tables:
 
 | File | Key Functions |
 |---|---|
-| `providers.py` | `BASE_PROVIDERS` dict (13 providers), `_build_supported_providers()` — dynamically enriches with `litellm.models_by_provider`, `SUPPORTED_PROVIDERS` — exported constant |
+| `providers.py` | `BASE_PROVIDERS` dict (13 providers); `_build_supported_providers()` enriches it from `litellm.models_by_provider`; `SUPPORTED_PROVIDERS` is the exported constant |
 | `routes.py` | CRUD for provider credentials and model activation per team |
 
 **Supported Providers (13):**
@@ -136,7 +136,7 @@ Managed by `backend/database.py`. 10 tables:
 | File | Key Functions |
 |---|---|
 | `indexer.py` | `load_file()` (PDF/TXT extraction), `chunk_text()` (langchain splitter), `embed_and_store()` (SentenceTransformers → ChromaDB) |
-| `retriever.py` | `retrieve(query, team_id)` — cosine similarity search against team's ChromaDB collection |
+| `retriever.py` | `retrieve(query, team_id)`: cosine similarity search against team's ChromaDB collection |
 | `routes.py` | `POST /rag/upload`, `GET /rag/documents`, `DELETE /rag/documents/{id}` |
 
 ---

@@ -1,4 +1,4 @@
-# AI Cowork — LLM Configurator Documentation
+# AI Cowork LLM Configurator Documentation
 
 ## Table of Contents
 
@@ -17,10 +17,10 @@
 
 The **LLM Configurator** is a self-contained microservice within the AI Cowork platform that lets users create, manage, and monitor LLM configurations. Each configuration bundles together:
 
-- **Model fallback chains** — ordered lists of LLM models per operation type (chat, completion, embedding, etc.) with automatic failover.
-- **Rate limits & restrictions** — TPM (Tokens Per Minute), RPM (Requests Per Minute), and TPR (Tokens Per Request) caps.
-- **Guardrails** — built-in PII masking plus user-defined custom guardrails (HTTP webhooks, HuggingFace classifiers, or OpenAI-compatible safety models).
-- **Custom operations** — user-defined prompt-wrapped endpoints with their own model chains.
+- **Model fallback chains**: ordered lists of LLM models per operation type (chat, completion, embedding, etc.) with automatic failover.
+- **Rate limits & restrictions**: TPM (Tokens Per Minute), RPM (Requests Per Minute), and TPR (Tokens Per Request) caps.
+- **Guardrails**: built-in PII masking plus user-defined custom guardrails (HTTP webhooks, HuggingFace classifiers, or OpenAI-compatible safety models).
+- **Custom operations**: user-defined prompt-wrapped endpoints with their own model chains.
 
 Once saved, each configuration exposes a set of REST endpoints (e.g., `/{config_name}/chat`, `/{config_name}/embeddings`) that downstream agents and applications can call. The Configurator handles routing, failover, rate limiting, guardrail enforcement, and usage logging transparently.
 
@@ -140,8 +140,8 @@ sequenceDiagram
 
 Configurations use a **dual-storage** pattern:
 
-1. **JSON files** (`configs/{full_name}.json`) — the source of truth for configuration data (operations, restrictions, guardrails).
-2. **SQLite table** (`llm_configs`) — stores metadata (status, timestamps) and enables fast listing/querying.
+1. **JSON files** (`configs/{full_name}.json`): the source of truth for configuration data (operations, restrictions, guardrails).
+2. **SQLite table** (`llm_configs`): stores metadata (status, timestamps) and enables fast listing/querying.
 
 On startup, the system globs all JSON files, loads them, and builds a `litellm.Router` instance for each active config.
 
@@ -153,9 +153,9 @@ On startup, the system globs all JSON files, loads them, and builds a `litellm.R
 
 The LLM Catalogue is the **prerequisite step** before building a configuration. It provides:
 
-1. **Model Discovery** — Browses all models known to LiteLLM (from `litellm.model_cost`) grouped by provider.
-2. **Model Configuration** — Lets users supply API keys and custom base URLs for models they want to use.
-3. **Custom Model Registration** — Supports adding arbitrary models not in LiteLLM's built-in catalogue.
+1. **Model Discovery**: Browses all models known to LiteLLM (from `litellm.model_cost`) grouped by provider.
+2. **Model Configuration**: Lets users supply API keys and custom base URLs for models they want to use.
+3. **Custom Model Registration**: Supports adding arbitrary models not in LiteLLM's built-in catalogue.
 
 ### Implementation
 
@@ -163,14 +163,14 @@ The LLM Catalogue is the **prerequisite step** before building a configuration. 
 
 | File | Purpose |
 |------|---------|
-| [catalog.py](file:///c:/Users/IT/Documents/ai-cowork/llm-configurator/backend/catalog.py) | Core catalogue logic |
-| [catalog_routes.py](file:///c:/Users/IT/Documents/ai-cowork/llm-configurator/backend/routes/catalog_routes.py) | REST endpoints |
+| [catalog.py](backend/catalog.py) | Core catalogue logic |
+| [catalog_routes.py](backend/routes/catalog_routes.py) | REST endpoints |
 
 **`get_models_catalog()`** iterates through `litellm.model_cost` (a built-in dictionary of ~thousands of models) and extracts:
-- `provider` — parsed from the model key prefix (e.g., `openai/` → OpenAI)
-- `mode` — chat, completion, embedding, image_generation, audio_transcription, audio_speech
-- `max_tokens`, `max_output_tokens` — token limits
-- `supports_vision` — boolean
+- `provider`: parsed from the model key prefix (e.g., `openai/` → OpenAI)
+- `mode`: chat, completion, embedding, image_generation, audio_transcription, audio_speech
+- `max_tokens`, `max_output_tokens`: token limits
+- `supports_vision`: boolean
 
 The function supports filtering by `provider`, `mode`, and free-text `query`.
 
@@ -190,12 +190,12 @@ The function supports filtering by `provider`, `mode`, and free-text `query`.
 
 #### Frontend
 
-[LLMCatalogue.jsx](file:///c:/Users/IT/Documents/ai-cowork/frontend/src/pages/LLMConfigurator/LLMCatalogue.jsx) renders a two-level interface:
+[LLMCatalogue.jsx](../frontend/src/pages/LLMConfigurator/LLMCatalogue.jsx) renders a two-level interface:
 
-1. **Provider Grid** — Cards showing provider name, total model count, and count of user-configured models.
-2. **Provider Detail** — Clicking a provider drills into its model list. Each model shows its name, mode, and a "Configure" or "Edit" button.
-3. **Configure Modal** — Form fields for API Key (password) and API Base URL (text).
-4. **Add Custom Model Modal** — For models not in LiteLLM's catalogue. Requires a model name containing `/` (e.g., `custom/my-model`), plus optional API key and base URL.
+1. **Provider Grid**: Cards showing provider name, total model count, and count of user-configured models.
+2. **Provider Detail**: Clicking a provider drills into its model list. Each model shows its name, mode, and a "Configure" or "Edit" button.
+3. **Configure Modal**: Form fields for API Key (password) and API Base URL (text).
+4. **Add Custom Model Modal**: For models not in LiteLLM's catalogue. Requires a model name containing `/` (e.g., `custom/my-model`), plus optional API key and base URL.
 
 #### Error Handling
 
@@ -214,11 +214,11 @@ The function supports filtering by `provider`, `mode`, and free-text `query`.
 
 The Configurator is the **core builder** where users create LLM configurations. Each configuration defines:
 
-- **Identity** — `usecase_name` + `config_name` → produces a `full_name` (e.g., `my_usecase_my_config`)
-- **Operations with Fallback Chains** — For each operation type, an ordered list of models with priorities (1 = primary, 2+ = fallback)
-- **Custom Operations** — User-defined operations with a system prompt/description and their own model chains (up to 10)
-- **Restrictions** — TPM, RPM (auto-calculated from TPM ÷ TPR), and TPR (auto-calculated as min `max_output_tokens` across all selected models)
-- **Guardrails** — Built-in PII masking + custom guardrails (see [Section 6](#6-custom-guardrails))
+- **Identity**: `usecase_name` + `config_name` → produces a `full_name` (e.g., `my_usecase_my_config`)
+- **Operations with Fallback Chains**: For each operation type, an ordered list of models with priorities (1 = primary, 2+ = fallback)
+- **Custom Operations**: User-defined operations with a system prompt/description and their own model chains (up to 10)
+- **Restrictions**: TPM, RPM (auto-calculated from TPM ÷ TPR), and TPR (auto-calculated as min `max_output_tokens` across all selected models)
+- **Guardrails**: Built-in PII masking + custom guardrails (see [Section 6](#6-custom-guardrails))
 
 ### Implementation
 
@@ -226,12 +226,12 @@ The Configurator is the **core builder** where users create LLM configurations. 
 
 | File | Purpose |
 |------|---------|
-| [schemas.py](file:///c:/Users/IT/Documents/ai-cowork/llm-configurator/backend/schemas.py) | Pydantic validation models |
-| [config_store.py](file:///c:/Users/IT/Documents/ai-cowork/llm-configurator/backend/config_store.py) | CRUD persistence |
-| [config_routes.py](file:///c:/Users/IT/Documents/ai-cowork/llm-configurator/backend/routes/config_routes.py) | REST endpoints |
-| [router_manager.py](file:///c:/Users/IT/Documents/ai-cowork/llm-configurator/backend/router_manager.py) | LiteLLM Router lifecycle |
-| [llm_routes.py](file:///c:/Users/IT/Documents/ai-cowork/llm-configurator/backend/routes/llm_routes.py) | LLM call execution |
-| [rate_limiter.py](file:///c:/Users/IT/Documents/ai-cowork/llm-configurator/backend/rate_limiter.py) | In-memory sliding window RPM enforcement |
+| [schemas.py](backend/schemas.py) | Pydantic validation models |
+| [config_store.py](backend/config_store.py) | CRUD persistence |
+| [config_routes.py](backend/routes/config_routes.py) | REST endpoints |
+| [router_manager.py](backend/router_manager.py) | LiteLLM Router lifecycle |
+| [llm_routes.py](backend/routes/llm_routes.py) | LLM call execution |
+| [rate_limiter.py](backend/rate_limiter.py) | In-memory sliding window RPM enforcement |
 
 ##### Schema Validation (`schemas.py`)
 
@@ -254,8 +254,8 @@ delete_config(name) → deletes DB row + JSON file
 ```
 
 Custom exceptions:
-- `ConfigAlreadyExistsError` — raised on duplicate `full_name` (→ HTTP 409)
-- `ConfigNotFoundError` — raised when config doesn't exist (→ HTTP 404)
+- `ConfigAlreadyExistsError`: raised on duplicate `full_name` (→ HTTP 409)
+- `ConfigNotFoundError`: raised when config doesn't exist (→ HTTP 404)
 
 ##### Router Management (`router_manager.py`)
 
@@ -309,23 +309,23 @@ Uses an **in-memory sliding window** (60-second window). Each config gets its ow
 
 #### Frontend
 
-[ConfiguratorBuilder.jsx](file:///c:/Users/IT/Documents/ai-cowork/frontend/src/pages/LLMConfigurator/ConfiguratorBuilder.jsx) is a large form component (~800 lines) with these sections:
+[ConfiguratorBuilder.jsx](../frontend/src/pages/LLMConfigurator/ConfiguratorBuilder.jsx) is a large form component (~800 lines) with these sections:
 
-1. **Identity** — `usecaseName` + `configName` inputs. A live preview shows the generated `full_name` and base endpoint URL. Fields are disabled when editing.
+1. **Identity**: `usecaseName` + `configName` inputs. A live preview shows the generated `full_name` and base endpoint URL. Fields are disabled when editing.
 
-2. **Operations Fallback Chains** — Dual-pane layout per operation type:
+2. **Operations Fallback Chains**. Dual-pane layout per operation type:
    - **Left**: Ordered "Routing Chain" showing selected models with drag-up/down priority reordering, per-model TPM input, and auto-calculated RPM
    - **Right**: Searchable catalogue picker grouped by provider, with add/already-added indicators
 
-3. **Custom Operations** — Expandable sections with description/system-prompt textarea and model chain picker (limited to chat models)
+3. **Custom Operations**: Expandable sections with description/system-prompt textarea and model chain picker (limited to chat models)
 
-4. **Overall Restrictions** — TPM slider (100 → 10M) with numeric input. Auto-calculated RPM and TPR displayed as read-only cards with formula explanations.
+4. **Overall Restrictions**: TPM slider (100 → 10M) with numeric input. Auto-calculated RPM and TPR displayed as read-only cards with formula explanations.
 
-5. **Guardrails** — PII Masking toggle (active), Profanity Filter (disabled/coming soon), plus embedded `CustomGuardrailsSection`.
+5. **Guardrails**: PII Masking toggle (active), Profanity Filter (disabled/coming soon), plus embedded `CustomGuardrailsSection`.
 
-6. **Footer** — Cancel and Save buttons. Save disabled until required fields are filled.
+6. **Footer**: Cancel and Save buttons. Save disabled until required fields are filled.
 
-[ConfiguratorList.jsx](file:///c:/Users/IT/Documents/ai-cowork/frontend/src/pages/LLMConfigurator/ConfiguratorList.jsx) renders the list view with a table of all configs, status badges, and action buttons (View/Edit/Delete with confirmation modal).
+[ConfiguratorList.jsx](../frontend/src/pages/LLMConfigurator/ConfiguratorList.jsx) renders the list view with a table of all configs, status badges, and action buttons (View/Edit/Delete with confirmation modal).
 
 #### Error Handling
 
@@ -353,7 +353,7 @@ The Dashboard provides **real-time analytics** for each configuration:
 
 #### Backend
 
-[usage_routes.py](file:///c:/Users/IT/Documents/ai-cowork/llm-configurator/backend/routes/usage_routes.py) provides 5 analytics endpoints, all querying the `usage_logs` SQLite table:
+[usage_routes.py](backend/routes/usage_routes.py) provides 5 analytics endpoints, all querying the `usage_logs` SQLite table:
 
 ##### `GET /{config}/usage/summary`
 
@@ -379,8 +379,8 @@ Returns bucketed time-series data (1-hour buckets for 24h range, 1-day buckets o
 - `prompt_tokens`, `completion_tokens`, `total_tokens`
 - `total_cost`
 - `avg_latency_ms`, `p95_latency_ms`
-- `peak_tpm` — peak tokens-per-minute within the bucket (computed via minute-level sub-aggregation)
-- `peak_rpm` — peak requests-per-minute within the bucket
+- `peak_tpm`: peak tokens-per-minute within the bucket (computed via minute-level sub-aggregation)
+- `peak_rpm`: peak requests-per-minute within the bucket
 
 Also returns `config_limits: { tpm_limit, rpm_limit }` for chart reference lines.
 
@@ -394,11 +394,11 @@ Groups by `endpoint`. Returns per-operation: calls, total_tokens, cost.
 
 ##### `GET /{config}/logs/recent`
 
-Returns the last N (1–200, default 50) log entries with full detail: timestamp, operation, model, tokens, cost, latency, success, error, fallback status.
+Returns the last N (1 to 200, default 50) log entries with full detail: timestamp, operation, model, tokens, cost, latency, success, error, fallback status.
 
 #### Frontend
 
-[ConfiguratorDetail.jsx](file:///c:/Users/IT/Documents/ai-cowork/frontend/src/pages/LLMConfigurator/ConfiguratorDetail.jsx) (~830 lines) renders a comprehensive dashboard:
+[ConfiguratorDetail.jsx](../frontend/src/pages/LLMConfigurator/ConfiguratorDetail.jsx) (~830 lines) renders a comprehensive dashboard:
 
 ##### KPI Row (6 cards)
 | Card | Source Field | Delta |
@@ -411,28 +411,28 @@ Returns the last N (1–200, default 50) log entries with full detail: timestamp
 | Fallback Triggers | `summary.fallback_triggers` | vs previous period |
 
 ##### Charts (6 Recharts visualizations)
-1. **Requests Over Time** — BarChart (success + failed stacked)
-2. **Tokens Over Time** — AreaChart (prompt + completion stacked)
-3. **Cost Over Time** — AreaChart
-4. **Latency Over Time** — LineChart (average + p95)
-5. **Token Throughput** — BarChart with TPM limit reference line
-6. **Request Rate** — BarChart with RPM limit reference line
+1. **Requests Over Time**: BarChart (success + failed stacked)
+2. **Tokens Over Time**: AreaChart (prompt + completion stacked)
+3. **Cost Over Time**: AreaChart
+4. **Latency Over Time**: LineChart (average + p95)
+5. **Token Throughput**: BarChart with TPM limit reference line
+6. **Request Rate**: BarChart with RPM limit reference line
 
 ##### Additional Panels
-- **Per-Model Breakdown** — Table with calls, tokens, cost, share %, fallbacks
-- **Cost by Model** — List of models with costs
-- **By Operation** — Progress bars showing call distribution
-- **Endpoints & Capabilities** — Lists all available URLs with copy-to-clipboard
-- **Operations Chain** — Read-only display of fallback chains
-- **Test Endpoint** — Inline form (operation selector + text input + response panel)
-- **Restrictions & Guardrails** — Sidebar showing RPM/TPM/TPR and guardrail status
-- **Recent Logs** — Table of last 50 entries
+- **Per-Model Breakdown**: Table with calls, tokens, cost, share %, fallbacks
+- **Cost by Model**: List of models with costs
+- **By Operation**: Progress bars showing call distribution
+- **Endpoints & Capabilities**: Lists all available URLs with copy-to-clipboard
+- **Operations Chain**: Read-only display of fallback chains
+- **Test Endpoint**: Inline form (operation selector + text input + response panel)
+- **Restrictions & Guardrails**: Sidebar showing RPM/TPM/TPR and guardrail status
+- **Recent Logs**: Table of last 50 entries
 
 ##### Features
-- **Time Range Selector** — 24h / 7d / 30d / All
-- **Model Filter** — Filter dashboard by specific model
-- **Auto-Refresh** — Dashboard data refreshes every 30 seconds
-- **Inline Testing** — Test any operation (including custom operations) directly from the dashboard
+- **Time Range Selector**: 24h / 7d / 30d / All
+- **Model Filter**: Filter dashboard by specific model
+- **Auto-Refresh**: Dashboard data refreshes every 30 seconds
+- **Inline Testing**: Test any operation (including custom operations) directly from the dashboard
 
 #### Error Handling
 
@@ -592,7 +592,7 @@ The system detects when a fallback model was used instead of the primary. `was_f
 
 | Method | Path | Description | Success | Errors |
 |--------|------|-------------|---------|--------|
-| `GET` | `/configs` | List all configurations | 200 | — |
+| `GET` | `/configs` | List all configurations | 200 | none |
 | `POST` | `/configs` | Create a new configuration | 201 | 400, 409 |
 | `GET` | `/configs/{full_name}` | Get configuration details | 200 | 404 |
 | `PUT` | `/configs/{full_name}` | Update a configuration | 200 | 400, 404 |
